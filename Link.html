@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium TaskFlow Workspace</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Poppins -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a',
+                        },
+                        darkmode: {
+                            bg: '#0f172a', card: '#1e293b', border: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up { animation: fadeUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        
+        body, main, aside, header, div, span, p, h1, h2, h3, button, input, select {
+            transition-property: background-color, border-color, color;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 300ms;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-darkmode-bg dark:text-slate-200 h-screen overflow-hidden flex font-sans antialiased">
+
+    <!-- Sidebar -->
+    <aside class="w-20 md:w-64 bg-white dark:bg-darkmode-card border-r border-slate-200 dark:border-darkmode-border flex flex-col shrink-0 z-20 transition-all">
+        <div class="h-20 flex items-center justify-center md:justify-start md:px-8 border-b border-slate-100 dark:border-darkmode-border">
+            <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/30">L</div>
+            <span class="hidden md:block ml-3 font-bold text-xl tracking-tight dark:text-white">Link Source</span>
+        </div>
+        
+        <nav class="flex-1 py-8 flex flex-col gap-2 px-4 overflow-y-auto" id="sidebarNav">
+            <p class="hidden md:block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 ml-4">Main Menu</p>
+            
+            <button onclick="switchTab('workspace')" id="tab-workspace" class="sidebar-tab flex items-center gap-4 px-4 py-3 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-500 rounded-xl font-medium w-full text-left transition-colors">
+                <i class="fa-solid fa-border-all w-5 text-center text-lg"></i>
+                <span class="hidden md:block">Workspace</span>
+            </button>
+            
+            <button onclick="switchTab('links')" id="tab-links" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors">
+                <i class="fa-solid fa-link w-5 text-center text-lg"></i>
+                <span class="hidden md:block">Links Resource</span>
+            </button>
+
+            <!-- New Automation Links Tab -->
+            <button onclick="switchTab('automations')" id="tab-automations" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors">
+                <i class="fa-solid fa-robot w-5 text-center text-lg"></i>
+                <span class="hidden md:block">Automation Links</span>
+            </button>
+            
+            <div class="flex items-center justify-between mt-6 mb-2 ml-4 pr-2">
+                <p class="hidden md:block text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Team</p>
+                <button onclick="openAddUserModal()" class="hidden md:block text-xs text-brand-500 hover:text-brand-700 font-semibold" title="Add User"><i class="fa-solid fa-plus"></i> Add User</button>
+            </div>
+            
+            <div id="teamList" class="flex flex-col gap-2"></div>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header class="h-20 bg-white/80 dark:bg-darkmode-card/80 backdrop-blur-md border-b border-slate-200 dark:border-darkmode-border flex items-center justify-between px-8 shrink-0 z-10">
+            <div>
+                <h2 class="text-xl font-bold dark:text-white hidden sm:block" id="greetingHeader"></h2>
+            </div>
+            
+            <!-- Updated Right Header Area -->
+            <div class="flex items-center gap-4 sm:gap-6">
+                <!-- Loading Indicator -->
+                <div id="syncIndicator" class="text-slate-400 text-sm font-medium flex items-center gap-2 transition-opacity duration-300">
+                   
+                </div>
+                
+                <div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
+                
+                <!-- Dark Mode Toggle Replacing Admin User -->
+                <button id="themeToggle" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-amber-400 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all hover:scale-105 active:scale-95 shadow-sm" title="Toggle Theme">
+                    <i class="fa-solid fa-moon dark:hidden text-lg transition-transform duration-500 rotate-0"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-lg transition-transform duration-500 rotate-180"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-10" id="mainContent">
+            
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-10 animate-fade-up">
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2" id="pageTitle">Workspace Overview</h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm" id="pageSubtitle">Manage deliverables and resources efficiently.</p>
+                </div>
+                <button onclick="openModal()" id="mainActionBtn" class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-3 rounded-xl font-medium shadow-lg shadow-brand-500/30 transition-all hover:shadow-brand-500/50 hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> <span id="btnText">Create New Task</span>
+                </button>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-10 animate-fade-up" id="statsContainer" style="animation-delay: 0.1s;">
+                <div class="bg-white dark:bg-darkmode-card p-5 rounded-2xl border border-slate-100 dark:border-darkmode-border shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center text-xl"><i class="fa-solid fa-list-check"></i></div>
+                    <div><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">Total Active</p><h2 id="totalCount" class="text-2xl font-bold text-slate-800 dark:text-white">0</h2></div>
+                </div>
+                <div class="bg-white dark:bg-darkmode-card p-5 rounded-2xl border border-slate-100 dark:border-darkmode-border shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center text-xl"><i class="fa-solid fa-hourglass-start"></i></div>
+                    <div><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">Pending</p><h2 id="pendingCount" class="text-2xl font-bold text-slate-800 dark:text-white">0</h2></div>
+                </div>
+                <div class="bg-white dark:bg-darkmode-card p-5 rounded-2xl border border-slate-100 dark:border-darkmode-border shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-500 flex items-center justify-center text-xl"><i class="fa-solid fa-spinner"></i></div>
+                    <div><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">In Progress</p><h2 id="inProgressCount" class="text-2xl font-bold text-slate-800 dark:text-white">0</h2></div>
+                </div>
+                <div class="bg-white dark:bg-darkmode-card p-5 rounded-2xl border border-slate-100 dark:border-darkmode-border shadow-sm flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center text-xl"><i class="fa-solid fa-check-double"></i></div>
+                    <div><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mb-0.5">Completed</p><h2 id="completedCount" class="text-2xl font-bold text-slate-800 dark:text-white">0</h2></div>
+                </div>
+            </div>
+
+            <!-- List Section -->
+            <div class="bg-white dark:bg-darkmode-card rounded-2xl border border-slate-100 dark:border-darkmode-border shadow-sm overflow-hidden animate-fade-up" style="animation-delay: 0.2s;">
+                <div class="p-6 border-b border-slate-100 dark:border-darkmode-border flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-white" id="tableHeader">Recent Items</h3>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[700px]">
+                        <thead id="tableHead" class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-darkmode-border bg-white dark:bg-darkmode-card">
+                        </thead>
+                        <tbody id="listBody" class="text-sm divide-y divide-slate-100 dark:divide-darkmode-border">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden flex-col items-center justify-center py-16 text-center">
+                    <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400 dark:text-slate-500 text-3xl mb-4">
+                        <i class="fa-solid fa-mug-hot"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-1">No items found</h3>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm max-w-sm">You've cleared your queue! Add a new item to get started.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Universal Create Modal -->
+    <div id="universalModal" class="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-darkmode-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300" id="modalContent">
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-darkmode-border flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white" id="modalTitle">Create New</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 w-8 h-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4" id="modalForm">
+                <!-- Form Injected Dynamically -->
+            </div>
+            <div class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-darkmode-border flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">Cancel</button>
+                <button onclick="saveItem()" class="px-5 py-2.5 text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. SUPABASE INITIALIZATION
+        // ==========================================
+        const SUPABASE_URL = 'https://agwnovwmvzhssggwvmee.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnd25vdndtdnpoc3NnZ3d2bWVlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzNDMxMjksImV4cCI6MjExMDkxOTEyOX0.B7LdoHlYzRYX4NRP1453RWq1LZg6YtyIKAGbYTOnJks';
+        
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
+        // ==========================================
+        // 2. STATE VARIABLES
+        // ==========================================
+        let currentTab = 'workspace';
+        let modalActionType = 'item'; 
+        
+        // These will be hydrated from Supabase
+        let users = [];
+        let tasks = [];
+        let links = [];
+        let automations = []; // New array for automation links
+
+        let viewConfigs = {
+            'workspace': { title: 'Workspace Overview', subtitle: 'Manage deliverables and resources efficiently.', btn: 'Create New Task', showStats: true, type: 'tasks' },
+            'links': { title: 'Links & Resource Hub', subtitle: 'Central database for all external tools and platforms.', btn: 'Add New Link', showStats: false, type: 'links' },
+            'automations': { title: 'Automation Links', subtitle: 'Manage triggers, webhooks, and automated workflows.', btn: 'Add Automation', showStats: false, type: 'automations' }
+        };
+
+        // ==========================================
+        // 3. DATA FETCHING (Crash-Proof)
+        // ==========================================
+        async function fetchSupabaseData() {
+            setSyncStatus('syncing');
+            let hasError = false;
+            
+            try {
+                // Fetch individually to prevent one missing table from breaking the entire app
+                const usersRes = await _supabase.from('users').select('*');
+                if (usersRes.data) users = usersRes.data; else hasError = true;
+
+                const tasksRes = await _supabase.from('tasks').select('*').order('id', { ascending: false });
+                if (tasksRes.data) tasks = tasksRes.data; else hasError = true;
+
+                const linksRes = await _supabase.from('links').select('*').order('id', { ascending: false });
+                if (linksRes.data) links = linksRes.data; else hasError = true;
+
+                const autoRes = await _supabase.from('automations').select('*').order('id', { ascending: false });
+                if (autoRes.data) automations = autoRes.data; else hasError = true;
+                
+                // If no users exist and no error, create default Nathan
+                if (users.length === 0 && !usersRes.error) {
+                    const defaultUser = { id: Date.now(), name: 'Nathan', initial: 'N', color: 'emerald' };
+                    await _supabase.from('users').insert([defaultUser]);
+                    users.push(defaultUser);
+                }
+
+                if (hasError) {
+                    setSyncStatus('error');
+                    console.warn("Some tables might not exist yet. Please run the SQL queries.");
+                } else {
+                    setSyncStatus('synced');
+                }
+            } catch(e) {
+                setSyncStatus('error');
+                console.error("Connection Error:", e);
+            }
+
+            // Still load UI regardless of error
+            loadDynamicUsers();
+            switchTab('workspace');
+        }
+
+        // --- Dark Mode Logic ---
+        const themeToggle = document.getElementById('themeToggle');
+        const htmlElement = document.documentElement;
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+        }
+        themeToggle.addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            themeToggle.querySelector('.fa-moon').classList.toggle('rotate-180');
+            themeToggle.querySelector('.fa-sun').classList.toggle('rotate-180');
+            localStorage.setItem('theme', htmlElement.classList.contains('dark') ? 'dark' : 'light');
+        });
+
+        // ==========================================
+        // User & Rendering Logic
+        // ==========================================
+        function loadDynamicUsers() {
+            const teamList = document.getElementById('teamList');
+            teamList.innerHTML = '';
+            
+            users.forEach(u => {
+                const tabId = u.name.toLowerCase();
+                viewConfigs[tabId] = { title: `${u.name}'s Tracker`, subtitle: `Manage ${u.name}'s daily deliverables and reports.`, btn: `Add Task for ${u.name}`, showStats: true, type: 'tasks', filter: u.name };
+                const colorClass = u.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' : u.color === 'purple' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600';
+                
+                // Sidebar button with Delete Trash Icon
+                teamList.innerHTML += `
+                <div class="relative group flex items-center pr-2">
+                    <button onclick="switchTab('${tabId}')" id="tab-${tabId}" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors pr-10">
+                        <div class="w-6 h-6 rounded-full ${colorClass} flex items-center justify-center text-xs font-bold uppercase shrink-0">${u.initial}</div>
+                        <span class="hidden md:block truncate">${u.name}'s Tasks</span>
+                    </button>
+                    <button onclick="deleteUser(${u.id})" class="absolute right-4 hidden md:flex text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete User">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                </div>
+                `;
+            });
+        }
+
+        window.deleteUser = async (id) => {
+            if (!confirm("Are you sure you want to remove this team member?")) return;
+            
+            users = users.filter(u => u.id !== id);
+            loadDynamicUsers();
+            if (currentTab !== 'workspace' && currentTab !== 'links' && currentTab !== 'automations') switchTab('workspace');
+
+            setSyncStatus('syncing');
+            const { error } = await _supabase.from('users').delete().eq('id', id);
+            if (error) setSyncStatus('error'); else setSyncStatus('synced');
+        };
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            const config = viewConfigs[tabId];
+            
+            document.querySelectorAll('.sidebar-tab').forEach(el => {
+                el.className = "sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors pr-10";
+            });
+            const activeTab = document.getElementById('tab-' + tabId);
+            if(activeTab) {
+                activeTab.className = "sidebar-tab flex items-center gap-4 px-4 py-3 bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-500 rounded-xl font-medium w-full text-left transition-colors pr-10";
+            }
+
+            document.getElementById('pageTitle').textContent = config.title;
+            document.getElementById('pageSubtitle').textContent = config.subtitle;
+            document.getElementById('btnText').textContent = config.btn;
+            
+            if(config.showStats) {
+                document.getElementById('statsContainer').style.display = 'grid';
+                document.getElementById('tableHeader').textContent = "Recent Tasks";
+            } else if(config.type === 'links') {
+                document.getElementById('statsContainer').style.display = 'none';
+                document.getElementById('tableHeader').textContent = "Database Links";
+            } else {
+                document.getElementById('statsContainer').style.display = 'none';
+                document.getElementById('tableHeader').textContent = "Automated Workflows";
+            }
+
+            const mainContent = document.getElementById('mainContent');
+            mainContent.classList.remove('animate-fade-up');
+            void mainContent.offsetWidth;
+            mainContent.classList.add('animate-fade-up');
+
+            renderData();
+        }
+
+        function renderData() {
+            const config = viewConfigs[currentTab];
+            const tbody = document.getElementById('listBody');
+            const thead = document.getElementById('tableHead');
+            tbody.innerHTML = '';
+            
+            if (config.type === 'tasks') {
+                thead.innerHTML = `<tr>
+                    <th class="py-4 px-6 w-12 text-center"><i class="fa-solid fa-arrows-rotate text-slate-300"></i></th>
+                    <th class="py-4 px-6 w-1/3">Task / Report</th>
+                    <th class="py-4 px-6">Assignee</th>
+                    <th class="py-4 px-6">Priority</th>
+                    <th class="py-4 px-6">Status</th>
+                    <th class="py-4 px-6 text-right">Action</th>
+                </tr>`;
+
+                let filteredTasks = tasks;
+                if (config.filter) {
+                    filteredTasks = tasks.filter(t => t.owner === config.filter);
+                }
+
+                updateStats(filteredTasks);
+                toggleEmptyState(filteredTasks.length === 0);
+
+                filteredTasks.forEach((task) => {
+                    const isDone = task.status === 'Completed';
+                    const isIP = task.status === 'In Progress';
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                            <td class="py-4 px-6 text-center">
+                                <button onclick="toggleTask(${task.id})" class="w-6 h-6 rounded border transition-colors flex items-center justify-center
+                                    ${isDone ? 'bg-emerald-100 border-emerald-300 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-700' : 
+                                      isIP ? 'bg-amber-100 border-amber-300 text-amber-600 dark:bg-amber-900/30 dark:border-amber-700' : 
+                                      'bg-slate-100 border-slate-300 text-slate-400 dark:bg-slate-800 dark:border-slate-600 hover:bg-slate-200'}">
+                                    <i class="fa-solid ${isDone ? 'fa-check' : isIP ? 'fa-spinner fa-spin-pulse text-xs' : 'fa-minus text-xs'}"></i>
+                                </button>
+                            </td>
+                            <td class="py-4 px-6">
+                                <p class="font-medium ${isDone ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-200'}">${task.title}</p>
+                                <p class="text-xs text-slate-400 mt-0.5">${task.note || ''}</p>
+                            </td>
+                            <td class="py-4 px-6"><span class="text-sm font-medium text-slate-600 dark:text-slate-300"><i class="fa-regular fa-user mr-1 text-slate-400"></i> ${task.owner}</span></td>
+                            <td class="py-4 px-6">
+                                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg ${task.priority==='High'?'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400':task.priority==='Medium'?'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400':'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}">${task.priority}</span>
+                            </td>
+                            <td class="py-4 px-6">
+                                <span class="text-xs font-semibold px-3 py-1 rounded-full ${isDone?'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400':isIP?'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400':'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">${task.status}</span>
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <button onclick="deleteItem('tasks', ${task.id})" class="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else if (config.type === 'links') {
+                thead.innerHTML = `<tr>
+                    <th class="py-4 px-6 w-1/3">Link / Title</th>
+                    <th class="py-4 px-6">URL</th>
+                    <th class="py-4 px-6">Category</th>
+                    <th class="py-4 px-6">Platform</th>
+                    <th class="py-4 px-6 text-right">Action</th>
+                </tr>`;
+
+                toggleEmptyState(links.length === 0);
+
+                links.forEach((link) => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                            <td class="py-4 px-6 font-medium text-slate-800 dark:text-slate-200">${link.title}</td>
+                            <td class="py-4 px-6 text-brand-600 dark:text-brand-400 text-sm truncate max-w-[200px]"><a href="${link.url.startsWith('http') ? link.url : '#'}" target="_blank" class="hover:underline">${link.url}</a></td>
+                            <td class="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">${link.category}</td>
+                            <td class="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">${link.platform}</td>
+                            <td class="py-4 px-6 text-right">
+                                <button onclick="deleteItem('links', ${link.id})" class="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } else if (config.type === 'automations') {
+                thead.innerHTML = `<tr>
+                    <th class="py-4 px-6 w-1/3">Automation Name</th>
+                    <th class="py-4 px-6">Webhook / URL</th>
+                    <th class="py-4 px-6">Platform</th>
+                    <th class="py-4 px-6">Status</th>
+                    <th class="py-4 px-6 text-right">Action</th>
+                </tr>`;
+
+                toggleEmptyState(automations.length === 0);
+
+                automations.forEach((auto) => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                            <td class="py-4 px-6 font-medium text-slate-800 dark:text-slate-200"><i class="fa-solid fa-plug text-brand-400 mr-2"></i> ${auto.title}</td>
+                            <td class="py-4 px-6 text-brand-600 dark:text-brand-400 text-sm truncate max-w-[200px]"><a href="${auto.url.startsWith('http') ? auto.url : '#'}" target="_blank" class="hover:underline">${auto.url}</a></td>
+                            <td class="py-4 px-6 text-sm font-semibold text-slate-500 dark:text-slate-400">${auto.platform}</td>
+                            <td class="py-4 px-6"><span class="text-xs font-semibold px-3 py-1 rounded-full ${auto.status==='Active'?'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400':'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">${auto.status}</span></td>
+                            <td class="py-4 px-6 text-right">
+                                <button onclick="deleteItem('automations', ${auto.id})" class="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function updateStats(data) {
+            document.getElementById('totalCount').textContent = data.length;
+            document.getElementById('pendingCount').textContent = data.filter(t => t.status === 'Pending').length;
+            document.getElementById('inProgressCount').textContent = data.filter(t => t.status === 'In Progress').length;
+            document.getElementById('completedCount').textContent = data.filter(t => t.status === 'Completed').length;
+        }
+
+        function toggleEmptyState(isEmpty) {
+            document.getElementById('emptyState').style.display = isEmpty ? 'flex' : 'none';
+        }
+
+        // ==========================================
+        // 4. SUPABASE DATA MUTATORS
+        // ==========================================
+        
+        window.toggleTask = async (id) => {
+            const task = tasks.find(t => t.id === id);
+            if (!task) return;
+            
+            if (task.status === 'Pending') task.status = 'In Progress';
+            else if (task.status === 'In Progress') task.status = 'Completed';
+            else task.status = 'Pending';
+            
+            renderData();
+            
+            setSyncStatus('syncing');
+            const { error } = await _supabase.from('tasks').update({ status: task.status }).eq('id', id);
+            if (error) setSyncStatus('error'); else setSyncStatus('synced');
+        };
+
+        window.deleteItem = async (table, id) => {
+            if (table === 'tasks') {
+                tasks = tasks.filter(t => t.id !== id);
+            } else if (table === 'links') {
+                links = links.filter(l => l.id !== id);
+            } else if (table === 'automations') {
+                automations = automations.filter(a => a.id !== id);
+            }
+            renderData();
+
+            setSyncStatus('syncing');
+            const { error } = await _supabase.from(table).delete().eq('id', id);
+            if (error) setSyncStatus('error'); else setSyncStatus('synced');
+        };
+
+        window.saveItem = async () => {
+            if (modalActionType === 'user') {
+                const newName = document.getElementById('inpNewUser').value.trim();
+                if (!newName) return;
+                
+                const newUser = { id: Date.now(), name: newName, initial: newName.charAt(0).toUpperCase(), color: 'blue' };
+                users.push(newUser);
+                loadDynamicUsers();
+                switchTab(currentTab);
+                closeModal();
+                
+                setSyncStatus('syncing');
+                const { error } = await _supabase.from('users').insert([newUser]);
+                if (error) setSyncStatus('error'); else setSyncStatus('synced');
+                return;
+            }
+
+            const title = document.getElementById('inpTitle').value.trim();
+            if (!title) return;
+
+            if (viewConfigs[currentTab].type === 'tasks') {
+                const newTask = {
+                    id: Date.now(),
+                    title: title,
+                    owner: document.getElementById('inpOwner').value,
+                    priority: document.getElementById('inpPriority').value,
+                    note: document.getElementById('inpNote').value,
+                    status: 'Pending'
+                };
+                tasks.unshift(newTask);
+                closeModal();
+                renderData();
+                
+                setSyncStatus('syncing');
+                const { error } = await _supabase.from('tasks').insert([newTask]);
+                if (error) setSyncStatus('error'); else setSyncStatus('synced');
+                
+            } else if (viewConfigs[currentTab].type === 'links') {
+                const newLink = {
+                    id: Date.now(),
+                    title: title,
+                    url: document.getElementById('inpUrl').value,
+                    category: document.getElementById('inpCat').value,
+                    platform: document.getElementById('inpPlat').value,
+                    status: 'Active'
+                };
+                links.unshift(newLink);
+                closeModal();
+                renderData();
+                
+                setSyncStatus('syncing');
+                const { error } = await _supabase.from('links').insert([newLink]);
+                if (error) setSyncStatus('error'); else setSyncStatus('synced');
+            } else if (viewConfigs[currentTab].type === 'automations') {
+                const newAuto = {
+                    id: Date.now(),
+                    title: title,
+                    url: document.getElementById('inpUrl').value,
+                    platform: document.getElementById('inpPlat').value,
+                    status: document.getElementById('inpCat').value
+                };
+                automations.unshift(newAuto);
+                closeModal();
+                renderData();
+                
+                setSyncStatus('syncing');
+                const { error } = await _supabase.from('automations').insert([newAuto]);
+                if (error) setSyncStatus('error'); else setSyncStatus('synced');
+            }
+        };
+
+        // --- Modals Logic ---
+        const modal = document.getElementById('universalModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalForm = document.getElementById('modalForm');
+
+        window.openModal = () => {
+            modalActionType = 'item';
+            const config = viewConfigs[currentTab];
+            document.getElementById('modalTitle').textContent = config.btn;
+            
+            if (config.type === 'tasks') {
+                const preSelect = config.filter || 'Deliverables';
+                let userOptions = `<option value="Deliverables" ${preSelect==='Deliverables'?'selected':''}>Deliverables</option>`;
+                users.forEach(u => {
+                    userOptions += `<option value="${u.name}" ${preSelect===u.name?'selected':''}>${u.name}</option>`;
+                });
+
+                modalForm.innerHTML = `
+                    <div><label class="block text-sm font-medium mb-1">Task Title</label><input type="text" id="inpTitle" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
+                    <div><label class="block text-sm font-medium mb-1">Remarks / Notes</label><input type="text" id="inpNote" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium mb-1">Assignee</label><select id="inpOwner" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">${userOptions}</select></div>
+                        <div><label class="block text-sm font-medium mb-1">Priority</label><select id="inpPriority" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
+                    </div>
+                `;
+            } else if (config.type === 'links') {
+                modalForm.innerHTML = `
+                    <div><label class="block text-sm font-medium mb-1">Link Title</label><input type="text" id="inpTitle" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
+                    <div><label class="block text-sm font-medium mb-1">URL / Destination</label><input type="url" id="inpUrl" placeholder="https://" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium mb-1">Category</label><input type="text" id="inpCat" value="External Tool" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
+                        <div><label class="block text-sm font-medium mb-1">Platform</label><input type="text" id="inpPlat" value="Web" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
+                    </div>
+                `;
+            } else if (config.type === 'automations') {
+                modalForm.innerHTML = `
+                    <div><label class="block text-sm font-medium mb-1">Automation Title</label><input type="text" id="inpTitle" placeholder="e.g. Email Sync" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
+                    <div><label class="block text-sm font-medium mb-1">Webhook / URL</label><input type="url" id="inpUrl" placeholder="https://" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium mb-1">Platform</label><input type="text" id="inpPlat" placeholder="e.g. Zapier, Make" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
+                        <div><label class="block text-sm font-medium mb-1">Status</label><select id="inpCat" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"><option value="Active">Active</option><option value="Paused">Paused</option></select></div>
+                    </div>
+                `;
+            }
+            showModalWindow();
+        };
+
+        window.openAddUserModal = () => {
+            modalActionType = 'user';
+            document.getElementById('modalTitle').textContent = "Add New Team Member";
+            modalForm.innerHTML = `
+                <div>
+                    <label class="block text-sm font-medium mb-1">Team Member Name</label>
+                    <input type="text" id="inpNewUser" placeholder="e.g. Sarah" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required>
+                </div>
+            `;
+            showModalWindow('inpNewUser');
+        }
+
+        function showModalWindow(focusId = 'inpTitle') {
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100'); }, 10);
+            setTimeout(() => { const el = document.getElementById(focusId); if(el) el.focus(); }, 100);
+        }
+
+        window.closeModal = () => {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100'); modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        };
+        
+        fetchSupabaseData(); 
+    </script>
+</body>
+</html>
