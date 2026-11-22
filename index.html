@@ -55,6 +55,15 @@
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-darkmode-bg dark:text-slate-200 h-screen overflow-hidden flex font-sans antialiased">
 
+    <!-- CSS Animated Full Screen Loader -->
+    <div id="pageLoader" class="fixed inset-0 bg-slate-50 dark:bg-darkmode-bg z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="relative w-16 h-16 mb-4">
+            <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-700"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
+        </div>
+        <p class="text-slate-500 dark:text-slate-400 font-medium animate-pulse text-sm">Loading...</p>
+    </div>
+
     <!-- Sidebar -->
     <aside class="w-20 md:w-64 bg-white dark:bg-darkmode-card border-r border-slate-200 dark:border-darkmode-border flex flex-col shrink-0 z-20 transition-all">
         <div class="h-20 flex items-center justify-center md:justify-start md:px-8 border-b border-slate-100 dark:border-darkmode-border">
@@ -73,6 +82,12 @@
             <button onclick="switchTab('links')" id="tab-links" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors">
                 <i class="fa-solid fa-link w-5 text-center text-lg"></i>
                 <span class="hidden md:block">Links Resource</span>
+            </button>
+
+            <!-- TP Links Tab -->
+            <button onclick="switchTab('tplinks')" id="tab-tplinks" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors">
+                <i class="fa-solid fa-globe w-5 text-center text-lg"></i>
+                <span class="hidden md:block">TP Links</span>
             </button>
 
             <!-- New Automation Links Tab -->
@@ -214,10 +229,12 @@
         let tasks = [];
         let links = [];
         let automations = []; // New array for automation links
+        let tplinks = []; // Added for TP Links
 
         let viewConfigs = {
             'workspace': { title: 'Workspace Overview', subtitle: 'Manage deliverables and resources efficiently.', btn: 'Create New Task', showStats: true, type: 'tasks' },
             'links': { title: 'Links & Resource Hub', subtitle: 'Central database for all external tools and platforms.', btn: 'Add New Link', showStats: false, type: 'links' },
+            'tplinks': { title: 'TP Links', subtitle: 'Quick access to specific TP related resources.', btn: 'Add TP Link', showStats: false, type: 'tplinks' },
             'automations': { title: 'Automation Links', subtitle: 'Manage triggers, webhooks, and automated workflows.', btn: 'Add Automation', showStats: false, type: 'automations' }
         };
 
@@ -225,7 +242,6 @@
         // 3. DATA FETCHING (Crash-Proof)
         // ==========================================
         async function fetchSupabaseData() {
-            setSyncStatus('syncing');
             let hasError = false;
             
             try {
@@ -239,6 +255,9 @@
                 const linksRes = await _supabase.from('links').select('*').order('id', { ascending: false });
                 if (linksRes.data) links = linksRes.data; else hasError = true;
 
+                const tpRes = await _supabase.from('tplinks').select('*').order('id', { ascending: false });
+                if (tpRes.data) tplinks = tpRes.data; else hasError = true;
+
                 const autoRes = await _supabase.from('automations').select('*').order('id', { ascending: false });
                 if (autoRes.data) automations = autoRes.data; else hasError = true;
                 
@@ -250,15 +269,20 @@
                 }
 
                 if (hasError) {
-                    setSyncStatus('error');
                     console.warn("Some tables might not exist yet. Please run the SQL queries.");
-                } else {
-                    setSyncStatus('synced');
                 }
             } catch(e) {
-                setSyncStatus('error');
                 console.error("Connection Error:", e);
             }
+
+            // Hide Loader once fetched
+            setTimeout(() => {
+                const loader = document.getElementById('pageLoader');
+                if (loader) {
+                    loader.classList.add('opacity-0');
+                    setTimeout(() => loader.style.display = 'none', 500);
+                }
+            }, 800);
 
             // Still load UI regardless of error
             loadDynamicUsers();
@@ -310,11 +334,9 @@
             
             users = users.filter(u => u.id !== id);
             loadDynamicUsers();
-            if (currentTab !== 'workspace' && currentTab !== 'links' && currentTab !== 'automations') switchTab('workspace');
+            if (currentTab !== 'workspace' && currentTab !== 'links' && currentTab !== 'automations' && currentTab !== 'tplinks') switchTab('workspace');
 
-            setSyncStatus('syncing');
             const { error } = await _supabase.from('users').delete().eq('id', id);
-            if (error) setSyncStatus('error'); else setSyncStatus('synced');
         };
 
         function switchTab(tabId) {
@@ -336,7 +358,7 @@
             if(config.showStats) {
                 document.getElementById('statsContainer').style.display = 'grid';
                 document.getElementById('tableHeader').textContent = "Recent Tasks";
-            } else if(config.type === 'links') {
+            } else if(config.type === 'links' || config.type === 'tplinks') {
                 document.getElementById('statsContainer').style.display = 'none';
                 document.getElementById('tableHeader').textContent = "Database Links";
             } else {
@@ -407,7 +429,7 @@
                         </tr>
                     `;
                 });
-            } else if (config.type === 'links') {
+            } else if (config.type === 'links' || config.type === 'tplinks') {
                 thead.innerHTML = `<tr>
                     <th class="py-4 px-6 w-1/3">Link / Title</th>
                     <th class="py-4 px-6">URL</th>
@@ -416,9 +438,10 @@
                     <th class="py-4 px-6 text-right">Action</th>
                 </tr>`;
 
-                toggleEmptyState(links.length === 0);
+                const activeArray = config.type === 'links' ? links : tplinks;
+                toggleEmptyState(activeArray.length === 0);
 
-                links.forEach((link) => {
+                activeArray.forEach((link) => {
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td class="py-4 px-6 font-medium text-slate-800 dark:text-slate-200">${link.title}</td>
@@ -426,7 +449,7 @@
                             <td class="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">${link.category}</td>
                             <td class="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">${link.platform}</td>
                             <td class="py-4 px-6 text-right">
-                                <button onclick="deleteItem('links', ${link.id})" class="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><i class="fa-solid fa-trash-can"></i></button>
+                                <button onclick="deleteItem('${config.type}', ${link.id})" class="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"><i class="fa-solid fa-trash-can"></i></button>
                             </td>
                         </tr>
                     `;
@@ -483,9 +506,7 @@
             
             renderData();
             
-            setSyncStatus('syncing');
             const { error } = await _supabase.from('tasks').update({ status: task.status }).eq('id', id);
-            if (error) setSyncStatus('error'); else setSyncStatus('synced');
         };
 
         window.deleteItem = async (table, id) => {
@@ -493,14 +514,14 @@
                 tasks = tasks.filter(t => t.id !== id);
             } else if (table === 'links') {
                 links = links.filter(l => l.id !== id);
+            } else if (table === 'tplinks') {
+                tplinks = tplinks.filter(l => l.id !== id);
             } else if (table === 'automations') {
                 automations = automations.filter(a => a.id !== id);
             }
             renderData();
 
-            setSyncStatus('syncing');
             const { error } = await _supabase.from(table).delete().eq('id', id);
-            if (error) setSyncStatus('error'); else setSyncStatus('synced');
         };
 
         window.saveItem = async () => {
@@ -514,9 +535,7 @@
                 switchTab(currentTab);
                 closeModal();
                 
-                setSyncStatus('syncing');
                 const { error } = await _supabase.from('users').insert([newUser]);
-                if (error) setSyncStatus('error'); else setSyncStatus('synced');
                 return;
             }
 
@@ -536,11 +555,9 @@
                 closeModal();
                 renderData();
                 
-                setSyncStatus('syncing');
                 const { error } = await _supabase.from('tasks').insert([newTask]);
-                if (error) setSyncStatus('error'); else setSyncStatus('synced');
                 
-            } else if (viewConfigs[currentTab].type === 'links') {
+            } else if (viewConfigs[currentTab].type === 'links' || viewConfigs[currentTab].type === 'tplinks') {
                 const newLink = {
                     id: Date.now(),
                     title: title,
@@ -549,13 +566,17 @@
                     platform: document.getElementById('inpPlat').value,
                     status: 'Active'
                 };
-                links.unshift(newLink);
+                
+                if (viewConfigs[currentTab].type === 'links') {
+                    links.unshift(newLink);
+                } else {
+                    tplinks.unshift(newLink);
+                }
+                
                 closeModal();
                 renderData();
                 
-                setSyncStatus('syncing');
-                const { error } = await _supabase.from('links').insert([newLink]);
-                if (error) setSyncStatus('error'); else setSyncStatus('synced');
+                const { error } = await _supabase.from(viewConfigs[currentTab].type).insert([newLink]);
             } else if (viewConfigs[currentTab].type === 'automations') {
                 const newAuto = {
                     id: Date.now(),
@@ -568,9 +589,7 @@
                 closeModal();
                 renderData();
                 
-                setSyncStatus('syncing');
                 const { error } = await _supabase.from('automations').insert([newAuto]);
-                if (error) setSyncStatus('error'); else setSyncStatus('synced');
             }
         };
 
@@ -599,12 +618,12 @@
                         <div><label class="block text-sm font-medium mb-1">Priority</label><select id="inpPriority" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
                     </div>
                 `;
-            } else if (config.type === 'links') {
+            } else if (config.type === 'links' || config.type === 'tplinks') {
                 modalForm.innerHTML = `
                     <div><label class="block text-sm font-medium mb-1">Link Title</label><input type="text" id="inpTitle" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
                     <div><label class="block text-sm font-medium mb-1">URL / Destination</label><input type="url" id="inpUrl" placeholder="https://" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium mb-1">Category</label><input type="text" id="inpCat" value="External Tool" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
+                        <div><label class="block text-sm font-medium mb-1">Category</label><input type="text" id="inpCat" value="${config.type === 'tplinks' ? 'TP Resource' : 'External Tool'}" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
                         <div><label class="block text-sm font-medium mb-1">Platform</label><input type="text" id="inpPlat" value="Web" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
                     </div>
                 `;
