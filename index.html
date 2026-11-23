@@ -59,7 +59,7 @@
     <aside class="w-20 md:w-64 bg-white dark:bg-darkmode-card border-r border-slate-200 dark:border-darkmode-border flex flex-col shrink-0 z-20 transition-all">
         <div class="h-20 flex items-center justify-center md:justify-start md:px-8 border-b border-slate-100 dark:border-darkmode-border">
             <div class="w-10 h-10 bg-gradient-to-br from-brand-500 to-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-brand-500/30">L</div>
-            <span class="hidden md:block ml-3 font-bold text-xl tracking-tight dark:text-white">Link Source v2</span>
+            <span class="hidden md:block ml-3 font-bold text-xl tracking-tight dark:text-white">Link Source</span>
         </div>
         
         <nav class="flex-1 py-8 flex flex-col gap-2 px-4 overflow-y-auto" id="sidebarNav">
@@ -75,13 +75,11 @@
                 <span class="hidden md:block">Links Resource</span>
             </button>
 
-            <!-- TP Links Tab -->
             <button onclick="switchTab('tplinks')" id="tab-tplinks" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors">
                 <i class="fa-solid fa-globe w-5 text-center text-lg"></i>
                 <span class="hidden md:block">TP Links</span>
             </button>
 
-            <!-- New Automation Links Tab -->
             <button onclick="switchTab('automations')" id="tab-automations" class="sidebar-tab flex items-center gap-4 px-4 py-3 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-medium w-full text-left transition-colors">
                 <i class="fa-solid fa-robot w-5 text-center text-lg"></i>
                 <span class="hidden md:block">Automation Links</span>
@@ -103,16 +101,9 @@
                 <h2 class="text-xl font-bold dark:text-white hidden sm:block" id="greetingHeader"></h2>
             </div>
             
-            <!-- Updated Right Header Area -->
             <div class="flex items-center gap-4 sm:gap-6">
-                <!-- Loading Indicator -->
-                <div id="syncIndicator" class="text-slate-400 text-sm font-medium flex items-center gap-2 transition-opacity duration-300">
-                   
-                </div>
-                
+                <div id="syncIndicator" class="text-slate-400 text-sm font-medium flex items-center gap-2 transition-opacity duration-300"></div>
                 <div class="h-8 w-px bg-slate-200 dark:bg-slate-700"></div>
-                
-                <!-- Dark Mode Toggle Replacing Admin User -->
                 <button id="themeToggle" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-amber-400 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 transition-all hover:scale-105 active:scale-95 shadow-sm" title="Toggle Theme">
                     <i class="fa-solid fa-moon dark:hidden text-lg transition-transform duration-500 rotate-0"></i>
                     <i class="fa-solid fa-sun hidden dark:block text-lg transition-transform duration-500 rotate-180"></i>
@@ -159,7 +150,7 @@
                 </div>
                 
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[700px]">
+                    <table class="w-full min-w-[750px]">
                         <thead id="tableHead" class="text-left text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider border-b border-slate-100 dark:border-darkmode-border bg-white dark:bg-darkmode-card">
                         </thead>
                         <tbody id="listBody" class="text-sm divide-y divide-slate-100 dark:divide-darkmode-border">
@@ -197,7 +188,8 @@
             </div>
         </div>
     </div>
-<script>
+
+    <script>
         // ==========================================
         // 1. SUPABASE INITIALIZATION
         // ==========================================
@@ -227,7 +219,7 @@
         };
 
         // ==========================================
-        // 3. INITIAL DATA FETCH (Isang beses lang sa pagbukas)
+        // 3. INITIAL DATA FETCH 
         // ==========================================
         async function fetchSupabaseData() {
             const indicator = document.getElementById('syncIndicator');
@@ -259,7 +251,7 @@
         }
 
         // ==========================================
-        // 4. TRUE LIVE REALTIME LISTENER (Walang Re-fetching)
+        // 4. TRUE LIVE REALTIME LISTENER
         // ==========================================
         function handleRealtimePayload(payload) {
             const { table, eventType, new: newRecord, old: oldRecord } = payload;
@@ -277,7 +269,6 @@
             if (!targetArray) return;
 
             if (eventType === 'INSERT') {
-                // Iwasan ang duplicate kung galing din sa sariling browser ang nag-add
                 if (!targetArray.some(item => item.id === newRecord.id)) {
                     if (table === 'users') targetArray.push(newRecord);
                     else targetArray.unshift(newRecord);
@@ -404,8 +395,9 @@
             if (config.type === 'tasks') {
                 thead.innerHTML = `<tr>
                     <th class="py-4 px-6 w-12 text-center"><i class="fa-solid fa-arrows-rotate text-slate-300"></i></th>
-                    <th class="py-4 px-6 w-1/3">Task / Report</th>
-                    <th class="py-4 px-6">Assignee</th>
+                    <th class="py-4 px-6 w-1/3">Task / Notes</th>
+                    <th class="py-4 px-6">URL / Link</th>
+                    <th class="py-4 px-6">Assignee & Platform</th>
                     <th class="py-4 px-6">Priority</th>
                     <th class="py-4 px-6">Status</th>
                     <th class="py-4 px-6 text-right">Action</th>
@@ -422,6 +414,7 @@
                 filteredTasks.forEach((task) => {
                     const isDone = task.status === 'Completed';
                     const isIP = task.status === 'In Progress';
+                    const hasUrl = task.url && task.url.trim() !== '';
                     
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
@@ -437,7 +430,13 @@
                                 <p class="font-medium ${isDone ? 'text-slate-400 line-through' : 'text-slate-800 dark:text-slate-200'}">${task.title}</p>
                                 <p class="text-xs text-slate-400 mt-0.5">${task.note || ''}</p>
                             </td>
-                            <td class="py-4 px-6"><span class="text-sm font-medium text-slate-600 dark:text-slate-300"><i class="fa-regular fa-user mr-1 text-slate-400"></i> ${task.owner}</span></td>
+                            <td class="py-4 px-6 text-sm truncate max-w-[180px]">
+                                ${hasUrl ? `<a href="${task.url.startsWith('http') ? task.url : 'https://' + task.url}" target="_blank" class="text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i> ${task.url}</a>` : `<span class="text-slate-400 text-xs">-</span>`}
+                            </td>
+                            <td class="py-4 px-6">
+                                <div class="text-sm font-medium text-slate-600 dark:text-slate-300"><i class="fa-regular fa-user mr-1 text-slate-400"></i> ${task.owner}</div>
+                                ${task.platform ? `<div class="text-xs text-slate-400 mt-0.5"><i class="fa-solid fa-layer-group mr-1"></i> ${task.platform}</div>` : ''}
+                            </td>
                             <td class="py-4 px-6">
                                 <span class="text-xs font-semibold px-2.5 py-1 rounded-lg ${task.priority==='High'?'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400':task.priority==='Medium'?'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400':'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300'}">${task.priority}</span>
                             </td>
@@ -466,7 +465,7 @@
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td class="py-4 px-6 font-medium text-slate-800 dark:text-slate-200">${link.title}</td>
-                            <td class="py-4 px-6 text-brand-600 dark:text-brand-400 text-sm truncate max-w-[200px]"><a href="${link.url.startsWith('http') ? link.url : '#'}" target="_blank" class="hover:underline">${link.url}</a></td>
+                            <td class="py-4 px-6 text-brand-600 dark:text-brand-400 text-sm truncate max-w-[200px]"><a href="${link.url.startsWith('http') ? link.url : 'https://' + link.url}" target="_blank" class="hover:underline">${link.url}</a></td>
                             <td class="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">${link.category}</td>
                             <td class="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">${link.platform}</td>
                             <td class="py-4 px-6 text-right">
@@ -490,7 +489,7 @@
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                             <td class="py-4 px-6 font-medium text-slate-800 dark:text-slate-200"><i class="fa-solid fa-plug text-brand-400 mr-2"></i> ${auto.title}</td>
-                            <td class="py-4 px-6 text-brand-600 dark:text-brand-400 text-sm truncate max-w-[200px]"><a href="${auto.url.startsWith('http') ? auto.url : '#'}" target="_blank" class="hover:underline">${auto.url}</a></td>
+                            <td class="py-4 px-6 text-brand-600 dark:text-brand-400 text-sm truncate max-w-[200px]"><a href="${auto.url.startsWith('http') ? auto.url : 'https://' + auto.url}" target="_blank" class="hover:underline">${auto.url}</a></td>
                             <td class="py-4 px-6 text-sm font-semibold text-slate-500 dark:text-slate-400">${auto.platform}</td>
                             <td class="py-4 px-6"><span class="text-xs font-semibold px-3 py-1 rounded-full ${auto.status==='Active'?'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400':'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}">${auto.status}</span></td>
                             <td class="py-4 px-6 text-right">
@@ -565,10 +564,12 @@
                 const newTask = {
                     id: uniqueId,
                     title: title,
+                    url: document.getElementById('inpUrl').value.trim(),
+                    note: document.getElementById('inpNote').value.trim(),
                     owner: document.getElementById('inpOwner').value,
+                    platform: document.getElementById('inpPlat').value.trim(),
                     priority: document.getElementById('inpPriority').value,
-                    note: document.getElementById('inpNote').value,
-                    status: 'Pending'
+                    status: document.getElementById('inpStatus').value
                 };
                 tasks.unshift(newTask);
                 closeModal();
@@ -581,9 +582,9 @@
                 const newLink = {
                     id: uniqueId,
                     title: title,
-                    url: document.getElementById('inpUrl').value,
-                    category: document.getElementById('inpCat').value,
-                    platform: document.getElementById('inpPlat').value,
+                    url: document.getElementById('inpUrl').value.trim(),
+                    category: document.getElementById('inpCat').value.trim(),
+                    platform: document.getElementById('inpPlat').value.trim(),
                     status: 'Active'
                 };
                 if (viewConfigs[currentTab].type === 'links') links.unshift(newLink);
@@ -598,8 +599,8 @@
                 const newAuto = {
                     id: uniqueId,
                     title: title,
-                    url: document.getElementById('inpUrl').value,
-                    platform: document.getElementById('inpPlat').value,
+                    url: document.getElementById('inpUrl').value.trim(),
+                    platform: document.getElementById('inpPlat').value.trim(),
                     status: document.getElementById('inpCat').value
                 };
                 automations.unshift(newAuto);
@@ -629,11 +630,45 @@
                 });
 
                 modalForm.innerHTML = `
-                    <div><label class="block text-sm font-medium mb-1">Task Title</label><input type="text" id="inpTitle" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required></div>
-                    <div><label class="block text-sm font-medium mb-1">Remarks / Notes</label><input type="text" id="inpNote" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"></div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Task / Deliverable Title</label>
+                        <input type="text" id="inpTitle" placeholder="e.g. Monthly Report" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">URL / Link</label>
+                        <input type="url" id="inpUrl" placeholder="https://" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Remarks / Notes</label>
+                        <input type="text" id="inpNote" placeholder="Additional details..." class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-sm font-medium mb-1">Assignee</label><select id="inpOwner" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">${userOptions}</select></div>
-                        <div><label class="block text-sm font-medium mb-1">Priority</label><select id="inpPriority" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white"><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Assignee</label>
+                            <select id="inpOwner" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">${userOptions}</select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Platform / Tool</label>
+                            <input type="text" id="inpPlat" placeholder="e.g. Google Docs, Notion" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Priority</label>
+                            <select id="inpPriority" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">
+                                <option value="High">High</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Status</label>
+                            <select id="inpStatus" class="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg dark:text-white">
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
                     </div>
                 `;
             } else if (config.type === 'links' || config.type === 'tplinks') {
